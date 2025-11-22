@@ -1,0 +1,434 @@
+doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Mini IT Workshop — Monthly Budget Planner</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root{
+      --bg:#fbfbfb; --card:#ffffff; --muted:#9aa0a6; --accent:#e6f7ee; --pink:#fdeef2; --green:#e6ffef; --black:#0b0b0b; --soft:#f2f2f4;
+    }
+    *{box-sizing:border-box}
+    body{font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; margin:0; background:linear-gradient(180deg, var(--bg), #f7f7f8); color:var(--black)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:18px 28px;background:transparent}
+    .container{max-width:1100px;margin:18px auto;padding:18px}
+
+    /* layout */
+    .grid{display:grid;grid-template-columns:320px 1fr;gap:18px}
+    nav{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 16px rgba(20,20,40,0.04)}
+    nav h2{margin:0 0 12px 0;font-size:16px}
+    nav button{display:block;width:100%;margin-bottom:8px;padding:10px;border-radius:8px;border:1px solid #eee;background:transparent;cursor:pointer}
+    main{min-height:70vh}
+
+    /* card */
+    .card{background:var(--card);padding:18px;border-radius:12px;box-shadow:0 6px 16px rgba(20,20,40,0.04);margin-bottom:18px}
+
+    /* form top banner */
+    .hero{display:flex;gap:18px;align-items:center}
+    .hero img{width:150px;height:150px;object-fit:cover;border-radius:12px}
+    .hero .form{flex:1}
+    label{display:block;font-size:13px;margin-top:8px;color:var(--muted)}
+    input, select{width:100%;padding:10px;border-radius:8px;border:1px solid #e6e6e9;margin-top:6px}
+    .row{display:flex;gap:8px}
+    .row input{flex:1}
+    .actions{margin-top:12px;display:flex;gap:8px}
+    .btn{padding:10px 14px;border-radius:8px;border:none;cursor:pointer}
+    .btn.primary{background:#111827;color:#fff}
+    .btn.ghost{background:transparent;border:1px solid #ddd}
+
+    /* saved plans list */
+    .plans-list{display:flex;flex-direction:column;gap:10px}
+    .plan-tile{padding:14px;border-radius:10px;border:1px dashed #eee;cursor:pointer;display:flex;align-items:center;justify-content:space-between}
+    .plan-title{font-weight:600}
+    .small-muted{font-size:12px;color:var(--muted)}
+
+    /* calendar view */
+    .calendar{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:14px}
+    .day-box{min-height:80px;padding:8px;border-radius:8px;border:1px solid #eee;background:var(--soft);display:flex;flex-direction:column;justify-content:space-between}
+    .day-num{font-weight:700}
+    .spent{font-size:12px}
+
+    /* top right info */
+    .top-right{display:flex;gap:10px;align-items:center}
+    .info-pill{background:linear-gradient(90deg,#fff,#fafafa);padding:8px 12px;border-radius:999px;border:1px solid #eee}
+
+    /* summary and charts */
+    .summary-grid{display:grid;grid-template-columns:1fr 360px;gap:18px}
+    canvas{background:transparent}
+
+    footer{padding:20px;text-align:center;color:var(--muted)}
+
+    @media(max-width:880px){.grid{grid-template-columns:1fr}.hero{flex-direction:column}.hero img{width:100%;height:180px}}
+  </style>
+</head>
+<body>
+  <header>
+    <div style="font-weight:700">Monthly Budget Planner</div>
+    <div class="top-right">
+      <div class="info-pill" id="globalEmergency">Emergency: ₹0</div>
+      <div class="info-pill small-muted" id="savedCount">Plans: 0</div>
+    </div>
+  </header>
+
+  <div class="container grid">
+    <nav class="card">
+      <h2>Navigation</h2>
+      <button id="showPlanner">1. Monthly Budget Planner</button>
+      <button id="showUpdater">2. Daily Expense Updater</button>
+      <button id="showSummary">3. Monthly Savings Summary</button>
+      <button id="showVisual">4. Saved Plans & Visualizations</button>
+      <hr style="margin:12px 0">
+    </nav>
+
+    <main>
+      <!-- Planner -->
+      <section id="planner" class="card">
+        <div class="hero">
+          <img src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=400&auto=format&fit=crop&ixlib=rb-4.0.3&s=abcdef" alt="banner">
+          <div class="form">
+            <label>Year</label>
+            <input type="number" id="yearInput" value="2025">
+            <label>Month</label>
+            <select id="monthInput"></select>
+            <label>Total Monthly Budget (₹)</label>
+            <input type="number" id="totalBudget" placeholder="Enter total monthly budget">
+            <div class="actions">
+              <button class="btn primary" id="savePlan">Execute & Save Plan</button>
+              <button class="btn ghost" id="resetForm">Reset</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Updater -->
+      <section id="updater" class="card" style="display:none">
+        <h3>Saved Plans</h3>
+        <div class="plans-list" id="plansList"></div>
+
+        <div id="planView" style="display:none;margin-top:12px">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+            <div>
+              <h3 id="planViewTitle"></h3>
+              <div class="small-muted">Daily budget: <span id="dailyBudgetShow">₹0</span></div>
+            </div>
+            <div style="display:flex;gap:8px;align-items:center">
+              <label>Select day</label>
+              <select id="selectDay"></select>
+              <label>Category</label>
+              <select id="selectCategory">
+                <option value="food">Food</option>
+                <option value="travel">Travel</option>
+                <option value="medical">Medical</option>
+                <option value="stationary">Stationary</option>
+                <option value="essentials">Essentials</option>
+                <option value="others">Others</option>
+              </select>
+              <input id="expenseAmount" type="number" placeholder="Amount" style="width:110px">
+              <button class="btn primary" id="addExpense">Add</button>
+            </div>
+          </div>
+
+          <div style="margin-top:14px;display:flex;justify-content:space-between;align-items:center">
+            <div class="small-muted">Calendar for <strong id="calendarMonthName"></strong></div>
+            <div style="display:flex;gap:8px">
+              <div class="info-pill">Emergency: ₹<span id="planEmergency">0</span></div>
+              <div class="info-pill small-muted">Total Spent: ₹<span id="planTotalSpent">0</span></div>
+            </div>
+          </div>
+
+          <div class="calendar" id="calendar"></div>
+        </div>
+      </section>
+
+      <!-- Summary -->
+      <section id="summary" class="card" style="display:none">
+        <h3>Monthly Savings Summary</h3>
+        <label>Select Plan</label>
+        <select id="summarySelect"></select>
+        <div id="summaryContent" style="margin-top:12px;display:none">
+          <div class="summary-grid">
+            <div>
+              <h4 id="summaryTitle"></h4>
+              <div id="categoryBreakdown"></div>
+            </div>
+            <div class="card">
+              <canvas id="summaryChart" width="300" height="300"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Visualizations -->
+      <section id="visual" class="card" style="display:none">
+        <h3>Saved Plans & Visualizations</h3>
+        <div id="visualList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-top:12px"></div>
+      </section>
+
+    </main>
+  </div>
+
+  <footer class="small-muted">Built for mini IT workshop — edit freely</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Utility
+    const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+    // DOM
+    const monthInput = document.getElementById('monthInput');
+    const yearInput = document.getElementById('yearInput');
+    const totalBudget = document.getElementById('totalBudget');
+    const savePlan = document.getElementById('savePlan');
+    const resetForm = document.getElementById('resetForm');
+    const plansList = document.getElementById('plansList');
+    const savedCount = document.getElementById('savedCount');
+    const globalEmergency = document.getElementById('globalEmergency');
+
+    // updater dom
+    const plansTiles = document.getElementById('plansList');
+    const planView = document.getElementById('planView');
+    const planViewTitle = document.getElementById('planViewTitle');
+    const calendar = document.getElementById('calendar');
+    const calendarMonthName = document.getElementById('calendarMonthName');
+    const selectDay = document.getElementById('selectDay');
+    const selectCategory = document.getElementById('selectCategory');
+    const expenseAmount = document.getElementById('expenseAmount');
+    const addExpense = document.getElementById('addExpense');
+    const dailyBudgetShow = document.getElementById('dailyBudgetShow');
+    const planEmergency = document.getElementById('planEmergency');
+    const planTotalSpent = document.getElementById('planTotalSpent');
+
+    // summary
+    const summary = document.getElementById('summary');
+    const summarySelect = document.getElementById('summarySelect');
+    const summaryContent = document.getElementById('summaryContent');
+    const summaryTitle = document.getElementById('summaryTitle');
+    const categoryBreakdown = document.getElementById('categoryBreakdown');
+    const summaryChart = document.getElementById('summaryChart');
+
+    const visualList = document.getElementById('visualList');
+
+    // navigation
+    document.getElementById('showPlanner').onclick = ()=> showSection('planner');
+    document.getElementById('showUpdater').onclick = ()=> showSection('updater');
+    document.getElementById('showSummary').onclick = ()=> showSection('summary');
+    document.getElementById('showVisual').onclick = ()=> showSection('visual');
+
+    function showSection(id){
+      ['planner','updater','summary','visual'].forEach(s=> document.getElementById(s).style.display = (s===id)?'block':'none');
+      if(id==='updater') renderPlansList();
+      if(id==='summary') populateSummarySelect();
+      if(id==='visual') renderVisuals();
+    }
+
+    // populate months
+    (function fillMonths(){
+      monthNames.forEach((m,i)=>{const o=document.createElement('option');o.value=i; o.textContent=m; monthInput.appendChild(o)});
+      // default month
+      monthInput.value = new Date().getMonth();
+      yearInput.value = new Date().getFullYear();
+    })();
+
+    // Storage helpers
+    function loadPlans(){
+      return JSON.parse(localStorage.getItem('budgetPlans') || '[]');
+    }
+    function savePlans(plans){
+      localStorage.setItem('budgetPlans', JSON.stringify(plans));
+      updateGlobalInfo();
+    }
+
+    function updateGlobalInfo(){
+      const plans = loadPlans();
+      savedCount.textContent = 'Plans: ' + plans.length;
+      // global emergency is sum of emergency of all plans
+      const tot = plans.reduce((s,p)=> s + (p.initialEmergency + computeNetFromDays(p)),0);
+      globalEmergency.textContent = 'Emergency: ₹' + tot.toFixed(2);
+    }
+
+    // compute days in month
+    function daysInMonth(y,m){return new Date(y,m+1,0).getDate();}
+
+    // compute emergencies based on current spent values in plan
+    function computeNetFromDays(plan){
+      // net = sum(dailyBudget - spent) across days
+      const daily = plan.dailyBudget;
+      return plan.days.reduce((acc,d)=> acc + (daily - d.spent),0);
+    }
+
+    // Save plan handler
+    savePlan.addEventListener('click', ()=>{
+      const y = parseInt(yearInput.value);
+      const m = parseInt(monthInput.value);
+      const total = parseFloat(totalBudget.value);
+      if(!y || isNaN(m) || !total || total<=0){alert('Please fill valid year, month and budget'); return}
+
+      const dinm = daysInMonth(y,m);
+      const initialEmergency = +(total * 0.10).toFixed(2);
+      const remaining = total - initialEmergency;
+      const dailyBudgetVal = +(remaining / dinm).toFixed(2);
+
+      // create days array default
+      const days = [];
+      for(let d=1; d<=dinm; d++){
+        days.push({date:d, spent:0, allocations:{food:0, travel:0, medical:0, stationary:0, essentials:0, others:0}});
+      }
+
+      const plans = loadPlans();
+      const plan = {
+        id: 'p_' + Date.now(), year:y, month:m, total:total, initialEmergency: initialEmergency, dailyBudget: dailyBudgetVal, days: days
+      };
+      plans.push(plan);
+      savePlans(plans);
+
+      // popup message required
+      alert('Plan saved!\nYour daily budget: ₹' + dailyBudgetVal + '\nYour emergency savings: ₹' + initialEmergency + '\nClick on Daily Expense Updater to update daily expenses');
+
+      // reset form 
+      totalBudget.value='';
+      renderPlansList();
+    });
+
+    resetForm.addEventListener('click', ()=>{ yearInput.value=new Date().getFullYear(); monthInput.value=new Date().getMonth(); totalBudget.value=''; })
+
+    // render saved plans as rectangles
+    function renderPlansList(){
+      const plans = loadPlans();
+      plansTiles.innerHTML='';
+      if(plans.length===0){plansTiles.innerHTML='<div class="small-muted">No saved plans yet</div>'; updateGlobalInfo(); return}
+      plans.forEach(p=>{
+        const el=document.createElement('div'); el.className='plan-tile';
+        el.innerHTML = `<div><div class="plan-title">${monthNames[p.month]} ${p.year}</div><div class="small-muted">Budget: ₹${p.total}</div></div><div class="small-muted">Open</div>`;
+        el.onclick = ()=> openPlanView(p.id);
+        plansTiles.appendChild(el);
+      });
+      updateGlobalInfo();
+    }
+
+    let currentPlanId = null;
+    function openPlanView(id){
+      const plans = loadPlans();
+      const plan = plans.find(x=>x.id===id);
+      if(!plan) return;
+      currentPlanId = id;
+      planView.style.display='block';
+      planViewTitle.textContent = monthNames[plan.month] + ' ' + plan.year;
+      calendarMonthName.textContent = monthNames[plan.month] + ' ' + plan.year;
+      dailyBudgetShow.textContent = '₹' + plan.dailyBudget;
+      populateSelectDay(plan.days.length);
+      renderCalendar(plan);
+      updatePlanStats(plan);
+      // set emergency display
+      planEmergency.textContent = (plan.initialEmergency + computeNetFromDays(plan)).toFixed(2);
+    }
+
+    function populateSelectDay(n){ selectDay.innerHTML=''; for(let i=1;i<=n;i++){ const o=document.createElement('option'); o.value=i; o.textContent=i; selectDay.appendChild(o);} }
+
+    function renderCalendar(plan){
+      calendar.innerHTML='';
+      const dinm = plan.days.length;
+      for(let i=1;i<=dinm;i++){
+        const d = plan.days[i-1];
+        const box = document.createElement('div'); box.className='day-box';
+        const spent = d.spent;
+        const budget = plan.dailyBudget;
+        // color coding
+        let bg = '#fffefc'; // default soft
+        if(spent > budget) box.style.background = '#ffecec'; // red tint
+        else if(Math.abs(spent - budget) < 0.01) box.style.background = '#fff7d6'; // yellow tint
+        else box.style.background = '#effff2'; // green tint
+
+        box.innerHTML = `<div><div class="day-num">${i}</div></div><div style="text-align:right"><div class="small-muted">Spent</div><div class="spent">₹${spent.toFixed(2)} / ₹${budget}</div></div>`;
+        calendar.appendChild(box);
+      }
+    }
+
+    function updatePlanStats(plan){
+      const totalSpent = plan.days.reduce((a,d)=>a + d.spent,0);
+      planTotalSpent.textContent = totalSpent.toFixed(2);
+      planEmergency.textContent = (plan.initialEmergency + computeNetFromDays(plan)).toFixed(2);
+    }
+
+    // add expense
+    addExpense.addEventListener('click', ()=>{
+      const amt = parseFloat(expenseAmount.value);
+      const day = parseInt(selectDay.value);
+      const cat = selectCategory.value;
+      if(isNaN(amt) || amt<=0){alert('Enter a valid amount'); return}
+      const plans = loadPlans();
+      const plan = plans.find(x=>x.id===currentPlanId);
+      if(!plan) return alert('No plan selected');
+      const dayObj = plan.days[day-1];
+      // add expense to category
+      dayObj.allocations[cat] = +(dayObj.allocations[cat] + amt).toFixed(2);
+      // recompute spent for that day
+      dayObj.spent = Object.values(dayObj.allocations).reduce((a,b)=>a+b,0);
+      savePlans(plans);
+      renderCalendar(plan);
+      updatePlanStats(plan);
+      expenseAmount.value='';
+      // update global display
+      updateGlobalInfo();
+    });
+
+    // Summary
+    function populateSummarySelect(){
+      const plans = loadPlans();
+      summarySelect.innerHTML='';
+      if(plans.length===0){ summarySelect.innerHTML='<option>No plans</option>'; return }
+      plans.forEach(p=>{ const o=document.createElement('option'); o.value = p.id; o.textContent = monthNames[p.month] + ' ' + p.year; summarySelect.appendChild(o) });
+      summarySelect.onchange = ()=> renderSummary(summarySelect.value);
+      // auto-select first
+      renderSummary(plans[0].id);
+    }
+
+    function renderSummary(id){
+      const plans = loadPlans();
+      const plan = plans.find(x=>x.id===id);
+      if(!plan) return;
+      summaryContent.style.display='block';
+      summaryTitle.textContent = monthNames[plan.month] + ' ' + plan.year + ' — Summary';
+      const categories = ['food','travel','medical','stationary','essentials','others'];
+      const totals = {};
+      categories.forEach(c=>totals[c]=0);
+      plan.days.forEach(d=>{ categories.forEach(c=> totals[c]+= d.allocations[c] || 0); });
+      // build HTML
+      categoryBreakdown.innerHTML = '<ul>' + categories.map(c=>`<li style="margin:6px 0"><strong>${c}</strong>: ₹${totals[c].toFixed(2)}</li>`).join('') + `<li style="margin-top:8px"><strong>Emergency</strong>: ₹${(plan.initialEmergency + computeNetFromDays(plan)).toFixed(2)}</li></ul>`;
+
+      // chart
+      const data = categories.map(c=>totals[c]);
+      const labels = categories.concat(['Emergency']);
+      const dataWithEmergency = data.concat([+(plan.initialEmergency + computeNetFromDays(plan)).toFixed(2)]);
+      if(window._summaryChart) window._summaryChart.destroy();
+      window._summaryChart = new Chart(summaryChart, {
+        type:'pie', data:{labels: labels, datasets:[{data: dataWithEmergency}]}, options:{plugins:{legend:{position:'bottom'}}}
+      });
+    }
+
+    // Visualizations
+    function renderVisuals(){
+      const plans = loadPlans();
+      visualList.innerHTML='';
+      plans.forEach(p=>{
+        const container = document.createElement('div'); container.className='card'; container.style.padding='12px';
+        const canvas = document.createElement('canvas'); canvas.width=240; canvas.height=200;
+        const title = document.createElement('div'); title.style.fontWeight=600; title.style.marginBottom='8px'; title.textContent = monthNames[p.month] + ' ' + p.year;
+        container.appendChild(title); container.appendChild(canvas);
+        visualList.appendChild(container);
+        // compute totals
+        const cats = ['food','travel','medical','stationary','essentials','others'];
+        const totals = cats.map(c=> p.days.reduce((a,d)=>a + (d.allocations[c]||0),0));
+        const emergencyVal = +(p.initialEmergency + computeNetFromDays(p)).toFixed(2);
+        const labels = ['Food','Travel','Medical','Stationary','Essentials','Others','Emergency'];
+        const data = totals.concat([emergencyVal]);
+        new Chart(canvas, {type:'pie', data:{labels:labels, datasets:[{data:data}]}, options:{plugins:{legend:{display:false}}}});
+      });
+    }
+
+    // initial render
+    renderPlansList();
+    updateGlobalInfo();
+  </script>
+</body>
+</html>
